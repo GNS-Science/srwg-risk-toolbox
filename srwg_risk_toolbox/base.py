@@ -6,6 +6,8 @@ import h5py
 import ast
 import json
 import matplotlib.pyplot as plt
+import os
+from pathlib import Path
 
 def set_plot_formatting():
     # set up plot formatting

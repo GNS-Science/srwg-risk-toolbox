@@ -23,6 +23,19 @@ def uhs_value(period, PGA, Sas, Tc, Td=3):
     return value
 
 
+def call_sa_parameters(site, rp, sc, sa_table):
+    line = [line for line in sa_table if
+            (line['Location'] == site) & (line['Site Soil Class'] == sc) & (line['APoE (1/n)'] == rp)][0]
+
+    return line['PGA'], line['Sas'], line['Tc']
+
+
+def retrieve_ts_design_im(site, rp, sc, period, sa_table):
+    pga, sas, tc = call_sa_parameters(site, rp, sc, sa_table)
+
+    return uhs_value(period, pga, sas, tc)
+
+
 def choose_representative_vs30(sc):
     sc_dict = {'I': {'representative_vs30': 750,
                      'label': 'Site Soil Class I',
