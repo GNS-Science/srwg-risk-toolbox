@@ -114,6 +114,21 @@ def choose_site_class(vs30, lower_bound=False):
     return list(sc_dict.keys())[sc_idx]
 
 
+def uhs_value(period, PGA, Sas, Tc, Td, decimal_places=3):
+    if period == 0:
+        value = PGA
+    elif period < 0.1:
+        value = PGA + (Sas - PGA) * (period / 0.1)
+    elif period < Tc:
+        value = Sas
+    elif period < Td:
+        value = Sas * Tc / period
+    else:
+        value = Sas * Tc / period * (Td / period) ** 0.5
+
+    return np.round(value, decimal_places)
+
+
 def convert_acc_imtls_to_disp(acc_imtls):
     '''
     converts the acceleration intensity measure types and levels to spectral displacements
@@ -169,6 +184,44 @@ def find_fragility_beta(median, im_value, ls_prob):
 
 def ls_fragility_beta_error(beta, median, im, target_prob):
     return np.abs(target_prob - stats.lognorm(beta, scale=median).cdf(im))[0]
+
+def risk_convolution_error(median, hcurve, imtl, beta, target_risk):
+    '''
+    error function for optimization
+
+    :param median: median of the fragility function
+    :param hcurve: hazard curve
+    :param imtl:   intensity measure levels
+    :param beta:   log std for the fragility function
+    :param target_risk:  risk value to target
+
+    :return: error from risk target
+    '''
+    # the derivative of the fragility function, characterized as the pdf instead of the cdf
+    pdf_limitstate_im = stats.lognorm(beta, scale=median).pdf(imtl)
+    disaggregation = pdf_limitstate_im * hcurve
+    risk = np.trapz(disaggregation, x=imtl)
+
+    return np.abs(target_risk - risk)
+
+def find_uniform_risk_intensity(hcurve, imtl, beta, target_risk, design_point):
+    '''
+    optimization to find the fragility and associated design intensity
+
+    :param hcurve: hazard curve
+    :param imtl:   intensity measure levels
+    :param beta:   log std for the fragility function
+    :param target_risk:   risk value to target
+    :param design_point:  design point for selecting the design intensity
+
+    :return: design intensity and median of fragility
+    '''
+
+    x0 = 0.5
+    median = minimize(risk_convolution_error, x0, args=(hcurve, imtl, beta, target_risk), method='Nelder-Mead').x[0]
+    im_r = stats.lognorm(beta, scale=median).ppf(design_point)
+
+    return im_r, median
 
 
 
