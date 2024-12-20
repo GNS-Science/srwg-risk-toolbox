@@ -29,9 +29,9 @@ with h5py.File(Path(data_folder, hcurves_file), 'r') as hf:
 
     hcurves = hf['hcurves']['hcurves_stats'][:]
 
-    imt = 'PGA'
-    hf_i_imt = hf_imt_list.index(imt)
-    imtl = imtls[imt]
+    # imt = 'PGA'
+    # hf_i_imt = hf_imt_list.index(imt)
+    # imtl = imtls[imt]
 
 
 # def query_pga_7pt5(site, sc):
@@ -104,7 +104,7 @@ def calculate_hcurve(imt,hazard_table,imtl=None):
     return hcurve, imtl
 
 
-def retrieve_pga_hcurve(site, sc, metric='mean'):
+def retrieve_nshm_hcurve(site, sc, imt, metric='mean'):
 
     if metric!='mean':
         hf_i_metric = 1 + hf_quantiles_list.index(metric)
@@ -112,9 +112,11 @@ def retrieve_pga_hcurve(site, sc, metric='mean'):
         hf_i_metric = 0
 
     vs30 = choose_representative_vs30(sc)
+    imtl = imtls[imt]
 
     hf_i_site = hf_site_list.index(site)
     hf_i_vs30 = hf_vs30_list.index(vs30)
+    hf_i_imt = hf_imt_list.index(imt)
     nshm_hcurve = hcurves[hf_i_vs30, hf_i_site, hf_i_imt, :, hf_i_metric]
 
     return nshm_hcurve, imtl
