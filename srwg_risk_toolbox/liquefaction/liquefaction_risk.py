@@ -46,7 +46,7 @@ with h5py.File(Path(data_folder, hcurves_file), 'r') as hf:
 #     return pga
 
 
-def query_ts_hazard(site, sc):
+def query_geotechnical_hazard(site, sc):
     site_idx = TS_TABLE['Location'] == site
     sc_idx = TS_TABLE['Site Class'] == sc
     site_hazard = TS_TABLE[site_idx & sc_idx][['APoE (1/n)', 'PGA', 'M', 'Sas', 'Tc']].set_index('APoE (1/n)')

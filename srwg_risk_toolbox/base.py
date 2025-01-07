@@ -15,6 +15,10 @@ from rich import print as rprint
 
 g = 9.80665 # gravity in m/s^2
 
+data_folder = Path(r'C:\Users\ahul697\OneDrive - The University of Auckland\Desktop\Research\GitHub_Repos\GNS\srwg-risk-toolbox\data')
+filename = Path(data_folder,'named_locations_combo.json')
+TS_TABLE = pd.read_json(filename,orient='table',precise_float=True)
+
 def acc_to_disp(acc,t):
     return (acc * g) * (t/(2*np.pi))**2
 
@@ -112,6 +116,14 @@ def choose_site_class(vs30, lower_bound=False):
     sc_idx = np.searchsorted(-boundaries, -vs30, side=side)
 
     return list(sc_dict.keys())[sc_idx]
+
+
+def query_sat_hazard(site, sc):
+    site_idx = TS_TABLE['Location'] == site
+    sc_idx = TS_TABLE['Site Class'] == sc
+    site_hazard = TS_TABLE[site_idx & sc_idx][['APoE (1/n)', 'PGA', 'Sas', 'Tc', 'Td']].set_index('APoE (1/n)')
+
+    return site_hazard
 
 
 def uhs_value(period, PGA, Sas, Tc, Td, decimal_places=3):
