@@ -55,6 +55,11 @@ def prob_in_n_years(risk,n_years=50):
     return 1 - np.exp(-risk * n_years)
 
 
+def annual_risk_from_n_years(p_n_years,risk_duration=50):
+
+    return - np.log(1 - p_n_years) / risk_duration
+
+
 def calculate_apoe_intensity(hazard_rp, hcurve, imtl):
     '''
 
@@ -66,6 +71,18 @@ def calculate_apoe_intensity(hazard_rp, hcurve, imtl):
     '''
 
     return np.exp(np.interp(np.log(1 / hazard_rp), np.log(np.flip(hcurve)), np.log(np.flip(imtl))))
+
+def calculate_intensity_apoe_n(target_intensity, hcurve, imtl):
+    '''
+
+    :param target_intensity: float   intensity
+    :param hcurve: list or np.array     list of apoes corresponding to the intensities
+    :param imtl:   list or np.array     list of intensities
+
+    :return: float  apoe_n of the intensity, linearly interpolated in log space (return period, inverse of apoe)
+    '''
+
+    return 1 / np.exp(np.interp(np.log(target_intensity), np.log(imtl), np.log(hcurve)))
 
 
 sc_dict = {'I': {'representative_vs30': 750,
@@ -126,7 +143,7 @@ def query_sat_hazard(site, sc):
     return site_hazard
 
 
-def uhs_value(period, PGA, Sas, Tc, Td, decimal_places=3):
+def uhs_value(period, PGA, Sas, Tc, Td=3, decimal_places=3):
     if period == 0:
         value = PGA
     elif period < 0.1:

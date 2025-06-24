@@ -27,6 +27,30 @@ def extract_spectra(data_file, intensity_type):
     return spectra, imtls
 
 
+def extract_single_uhs_value(data_file, intensity_type, site, vs30, rp, imt, metric):
+    """Extract a single uniform hazard spectra from the hdf5
+    """
+
+    spectra, imtls = extract_spectra(data_file, intensity_type)
+
+    site_list = list(extract_sites(data_file).index)
+    vs30_list = extract_vs30s(data_file)
+    imt_list = list(imtls.keys())
+    _, hazard_rp_list = extract_APoEs(data_file)
+    quantiles = extract_quantiles(data_file)
+
+    i_site = site_list.index(site)
+    i_vs30 = vs30_list.index(vs30)
+    i_imt = imt_list.index(imt)
+    i_rp = hazard_rp_list.index(rp)
+
+    if metric=='mean':
+        i_metric = 0
+    else:
+        i_metric = quantiles.index(metric) + 1
+
+    return spectra[i_vs30,i_site,i_imt,i_rp,i_metric]
+
 def extract_vs30s(data_file):
     """Extract the vs30 values from the hdf5
 
