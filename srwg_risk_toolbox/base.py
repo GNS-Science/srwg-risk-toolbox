@@ -15,6 +15,10 @@ from rich import print as rprint
 
 g = 9.80665 # gravity in m/s^2
 
+data_folder = Path(r'C:\Users\ahul697\OneDrive - The University of Auckland\Desktop\Research\GitHub_Repos\GNS\srwg-risk-toolbox\data')
+filename = Path(data_folder,'named_locations_combo.json')
+TS_TABLE = pd.read_json(filename,orient='table',precise_float=True)
+
 def acc_to_disp(acc,t):
     return (acc * g) * (t/(2*np.pi))**2
 
@@ -51,6 +55,11 @@ def prob_in_n_years(risk,n_years=50):
     return 1 - np.exp(-risk * n_years)
 
 
+def annual_risk_from_n_years(p_n_years,risk_duration=50):
+
+    return - np.log(1 - p_n_years) / risk_duration
+
+
 def calculate_apoe_intensity(hazard_rp, hcurve, imtl):
     '''
 
@@ -62,6 +71,18 @@ def calculate_apoe_intensity(hazard_rp, hcurve, imtl):
     '''
 
     return np.exp(np.interp(np.log(1 / hazard_rp), np.log(np.flip(hcurve)), np.log(np.flip(imtl))))
+
+def calculate_intensity_apoe_n(target_intensity, hcurve, imtl):
+    '''
+
+    :param target_intensity: float   intensity
+    :param hcurve: list or np.array     list of apoes corresponding to the intensities
+    :param imtl:   list or np.array     list of intensities
+
+    :return: float  apoe_n of the intensity, linearly interpolated in log space (return period, inverse of apoe)
+    '''
+
+    return 1 / np.exp(np.interp(np.log(target_intensity), np.log(imtl), np.log(hcurve)))
 
 
 sc_dict = {'I': {'representative_vs30': 750,
@@ -112,6 +133,29 @@ def choose_site_class(vs30, lower_bound=False):
     sc_idx = np.searchsorted(-boundaries, -vs30, side=side)
 
     return list(sc_dict.keys())[sc_idx]
+
+
+def query_sat_hazard(site, sc):
+    site_idx = TS_TABLE['Location'] == site
+    sc_idx = TS_TABLE['Site Class'] == sc
+    site_hazard = TS_TABLE[site_idx & sc_idx][['APoE (1/n)', 'PGA', 'Sas', 'Tc', 'Td']].set_index('APoE (1/n)')
+
+    return site_hazard
+
+
+def uhs_value(period, PGA, Sas, Tc, Td=3, decimal_places=3):
+    if period == 0:
+        value = PGA
+    elif period < 0.1:
+        value = PGA + (Sas - PGA) * (period / 0.1)
+    elif period < Tc:
+        value = Sas
+    elif period < Td:
+        value = Sas * Tc / period
+    else:
+        value = Sas * Tc / period * (Td / period) ** 0.5
+
+    return np.round(value, decimal_places)
 
 
 def convert_acc_imtls_to_disp(acc_imtls):
@@ -169,6 +213,44 @@ def find_fragility_beta(median, im_value, ls_prob):
 
 def ls_fragility_beta_error(beta, median, im, target_prob):
     return np.abs(target_prob - stats.lognorm(beta, scale=median).cdf(im))[0]
+
+def risk_convolution_error(median, hcurve, imtl, beta, target_risk):
+    '''
+    error function for optimization
+
+    :param median: median of the fragility function
+    :param hcurve: hazard curve
+    :param imtl:   intensity measure levels
+    :param beta:   log std for the fragility function
+    :param target_risk:  risk value to target
+
+    :return: error from risk target
+    '''
+    # the derivative of the fragility function, characterized as the pdf instead of the cdf
+    pdf_limitstate_im = stats.lognorm(beta, scale=median).pdf(imtl)
+    disaggregation = pdf_limitstate_im * hcurve
+    risk = np.trapz(disaggregation, x=imtl)
+
+    return np.abs(target_risk - risk)
+
+def find_uniform_risk_intensity(hcurve, imtl, beta, target_risk, design_point):
+    '''
+    optimization to find the fragility and associated design intensity
+
+    :param hcurve: hazard curve
+    :param imtl:   intensity measure levels
+    :param beta:   log std for the fragility function
+    :param target_risk:   risk value to target
+    :param design_point:  design point for selecting the design intensity
+
+    :return: design intensity and median of fragility
+    '''
+
+    x0 = 0.5
+    median = minimize(risk_convolution_error, x0, args=(hcurve, imtl, beta, target_risk), method='Nelder-Mead').x[0]
+    im_r = stats.lognorm(beta, scale=median).ppf(design_point)
+
+    return im_r, median
 
 
 

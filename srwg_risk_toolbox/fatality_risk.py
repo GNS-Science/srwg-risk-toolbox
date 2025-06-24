@@ -1,20 +1,5 @@
 from .base import *
 
-def uhs_value(period, PGA, Sas, Tc, Td=3):
-    if period == 0:
-        value = PGA
-    elif period < 0.1:
-        value = PGA + (Sas - PGA) * (period / 0.1)
-    elif period < Tc:
-        value = Sas
-    elif period < Td:
-        value = Sas * Tc / period
-    else:
-        value = Sas * Tc / period * (Td / period) ** 0.5
-
-    return value
-
-
 def call_sa_parameters(site, rp, sc, sa_table):
     line = [line for line in sa_table if
             (line['Location'] == site) & (line['Site Soil Class'] == sc) & (line['APoE (1/n)'] == rp)][0]
