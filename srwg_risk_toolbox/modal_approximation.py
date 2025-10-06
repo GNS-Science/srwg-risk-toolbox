@@ -37,6 +37,9 @@ def alpha_response_profiles(alphas, n_stories, eff_height, sdof):
 
 
 def plot_drift_profiles(plot_parameters):
+    '''
+    Plot the drift profiles, including the location on the figure
+    '''
     
     # extract parameters
     structural_systems = plot_parameters['structural_systems']
@@ -127,6 +130,8 @@ def plot_drift_profiles(plot_parameters):
             
             
 def plot_disp_profiles(plot_parameters):
+    ''' Plots the displacement profiles, including the position on the figure
+    '''
     
     # extract parameters
     structural_systems = plot_parameters['structural_systems']
@@ -202,6 +207,97 @@ def plot_disp_profiles(plot_parameters):
                 va = 'top'
             x = np.max(disp_profiles[k,:])
             y = stories[np.argmax(disp_profiles[k,:])]
+
+
+def plot_building_approximation(plot_parameters,structural_systems):
+    '''
+    Plot the concept of the building as an SDOF
+    '''
+    from matplotlib.lines import Line2D
+
+    ax = plot_parameters['ax']
+    x_min = plot_parameters['x_min']
+    x_frac = plot_parameters['x_frac']
+    y_min = plot_parameters['y_min']
+    y_frac = plot_parameters['y_frac']
+    anno_fontsize = plot_parameters['anno_fontsize']
+
+    x_sdof = plot_parameters['x_sdof']
+    n_stories = 100
+    eff_height = n_stories * plot_parameters['eff_height_ratio']
+
+    bldg_min = plot_parameters['bldg_min']
+    bldg_max = plot_parameters['bldg_max']
+    bldg_center = np.mean([bldg_min, bldg_max])
+
+    legend_x = 0.1975
+    legend_y = 0.4
+
+    # scale for the figure
+    xlim = ax.get_xlim()
+    x_min *= (xlim[1] - xlim[0])
+    x_scale = (x_frac * (xlim[1] - xlim[0]))
+    xlim = [x_min, x_min + x_scale]
+
+    ylim = ax.get_ylim()
+    stories = np.arange(n_stories) + 0.5
+    y_scale = (y_frac * (ylim[1] - ylim[0])) / n_stories
+    y_min *= (ylim[1] - ylim[0])
+    stories *= y_scale
+    stories += y_min
+    ylim = [y_min, stories[-1]]
+
+    eff_height *= y_scale
+    eff_height += y_min
+
+    x_sdof *= x_scale
+    x_sdof += x_min
+
+    bldg_min *= x_scale
+    bldg_min += x_min
+
+    bldg_max *= x_scale
+    bldg_max * + x_frac
+
+    color = 'k'
+    _ = ax.scatter(x_sdof, eff_height, color=color)
+    _ = ax.plot([x_sdof] * 2, [ylim[0], eff_height], color=color, ls='-', zorder=-5)
+
+    color = 'silver'
+    _ = ax.plot([x_min] * 2, ylim, color=color)
+    _ = ax.plot(xlim, [y_min] * 2, color=color)
+
+    color = 'lightgray'
+    _ = ax.fill_between([bldg_min, bldg_max], ylim[0], [ylim[1]] * 2, color=color)
+
+    if True:
+        _ = ax.text(xlim[0], ylim[1], 'Height', rotation=90, ha='right', va='top')
+        _ = ax.text(xlim[1], ylim[0], '\nSDOF approximation', rotation=0, ha='right', va='center')
+
+        x_gap = 1e-2 * x_scale
+        _ = ax.text(x_sdof - x_gap, eff_height, '$height_{effective}$  ', rotation=90, ha='right', va='top',
+                    fontsize=anno_fontsize)
+
+        anno = '$N_{stories}$'
+        _ = ax.annotate(anno, [legend_x, legend_y + 0.35], xycoords='axes fraction', ha='center', va='center',
+                        fontsize=anno_fontsize)
+
+        handles = []
+        for k, str_sys in enumerate(structural_systems):
+            color = 'dimgray'
+            ls = plot_parameters['ls'][k]
+            lw = 2
+            #             lw = plot_parameters['lw'][k]
+            if str_sys == 'rc frame':
+                label = 'Frame'
+            elif str_sys == 'wall':
+                label = 'Wall'
+            handles.append(Line2D([0], [0], color=color, lw=lw, ls=ls, label=label))
+
+        title = 'Structural\nSystem'
+        legend = ax.legend(handles=handles, title=title, handlelength=1.3, bbox_to_anchor=[legend_x, legend_y],
+                           loc='center')
+        legend.get_title().set_multialignment('center')
 
 
 def characteristic_eqn(gamma,alpha):

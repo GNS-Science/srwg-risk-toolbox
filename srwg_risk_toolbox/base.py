@@ -252,6 +252,26 @@ def find_uniform_risk_intensity(hcurve, imtl, beta, target_risk, design_point):
 
     return im_r, median
 
+#
+# def string_order_of_mag(x):
+#     ''' return a formatted string for 10 raised to the order of magnitude of the value, x
+#     '''
+#     order_of_mag = int('{x:e}'.format(x=x).split('e')[-1])
+#     return f'10$^{{{order_of_mag}}}$'
+
+
+
+def blend_colors(color1, color2, alpha):
+    """Blend two colors with given opacity (alpha level).
+
+    can be used to lighten a given color
+
+    blend([1.0, 0.5, 0.0], [1.0, 1.0, 1.0], 0.5)
+    [1.0, 0.75, 0.5]
+    """
+    return [alpha * c1 + (1 - alpha) * c2
+            for (c1, c2) in zip(color1, color2)]
+
 
 
 def set_plot_formatting(SMALL_SIZE=15,MEDIUM_SIZE=18,BIGGER_SIZE=25):

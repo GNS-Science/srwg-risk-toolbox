@@ -1,5 +1,7 @@
 from .base import *
 
+from .fatality_risk import risk_convolution
+
 
 def cdf_to_pdf(cdf, imtl):
     '''
@@ -128,3 +130,157 @@ def loss_model(imtl, pt_low, pt_high, pt_corner=None, total_loss_triggered=None,
         _ = plt.show()
 
     return cdf, pdf
+
+
+
+def infer_component_fragilities(comp_median, beta_comp, beta_rtr, p=0.9):
+    ''' use component distribution's median and dispersion, beta_rtr, and percentile to calculate
+        other parameters of the fragility distribution and return as dictionary
+
+    :param comp_median: median value of the distribution of component fragility medians
+    :param beta_comp: lognormal standard deviation of the distribution of the component fragility medians
+    :param beta_rtr: record-to-record uncertainty of each fragility
+    :param p: percentile of interest for the pth percentile of the risk
+
+    :return: dictionary of the relevant parameters for the fragility distribution
+    '''
+    beta_tot = np.sqrt(beta_comp ** 2 + beta_rtr ** 2).round(2)
+    comp_p = stats.lognorm(beta_comp, scale=comp_median).ppf(1 - p).round(4)
+
+    return {"comp_median": comp_median, "comp_p": comp_p, "beta_tot": beta_tot, "beta_rtr": beta_rtr,
+            "beta_comp": beta_comp}
+
+
+def comp_id_from_desc(comp_name, desc, component_data):
+    ''' searches a dictionary of component data, looking for the component associated with a description
+
+    :param comp_name: name of the general class of components (e.g., Partitions)
+    :param desc: description to search for
+    :param component_data: dictionary of component data
+
+    :return: comp_id: id of the relevant component
+    '''
+
+    components = component_data[comp_name]
+    comp_id = [comp_id for comp_id, comp_info in components.items() if comp_info['description'] == desc][0]
+    return comp_id
+
+
+def calc_component_damage_risk_stats(fragility_parameters, hcurve, imtl, risk_duration=50):
+    ''' calculate statistics of the risk distribution, based on design inputs and the hazard curve
+
+    :param fragility_parameters: dictionary of the relevant parameters for the fragility distribution
+    :param hcurve: hazard curve annual probabilities of exceedance
+    :param imtl: hazard curve intensity measures -- already adjusted for drift
+    :param risk_duration: length of time considered (e.g., risk in 50 years)
+
+    :return: list of risk values - mean, median, and percentile of interest (based on fragility_parameters)
+    '''
+    comp_median = fragility_parameters['comp_median']
+    comp_p = fragility_parameters['comp_p']
+    beta_tot = fragility_parameters['beta_tot']
+    beta_rtr = fragility_parameters['beta_rtr']
+
+    risk_metrics = []
+
+    for i, (median, beta) in enumerate(zip([comp_median, comp_median, comp_p], [beta_tot, beta_rtr, beta_rtr])):
+        risk, _ = risk_convolution(hcurve, imtl, median, beta)
+        risk_metrics.append(prob_in_n_years(risk, risk_duration))
+
+    return risk_metrics
+
+
+def calc_component_damage_risk_stats_alt_pvalues(fragility_parameters, hcurve, imtl, p_values=None, risk_duration=50):
+    ''' calculate statistics of the risk distribution, based on design inputs and the hazard curve
+    similar to calc_component_damage_risk_stats except that additional p values can be passed in
+
+    :param fragility_parameters: dictionary of the relevant parameters for the fragility distribution
+    :param hcurve: hazard curve annual probabilities of exceedance
+    :param imtl: hazard curve intensity measures -- already adjusted for drift
+    :param p_values: list of p values to calculate risk for
+    :param risk_duration: length of time considered (e.g., risk in 50 years)
+
+    :return: list of risk values - mean, median, and percentile of interest (based on fragility_parameters)
+    '''
+
+    comp_median = fragility_parameters['comp_median']
+    comp_p = fragility_parameters['comp_p']
+    beta_tot = fragility_parameters['beta_tot']
+    beta_rtr = fragility_parameters['beta_rtr']
+    beta_comp = fragility_parameters['beta_comp']
+
+    if p_values is None:
+        comp_ps = [comp_p]
+    else:
+        comp_ps = [stats.lognorm(beta_comp, scale=comp_median).ppf(1 - p).round(4) for p in p_values]
+    beta_rtr_ps = [beta_rtr] * len(comp_ps)
+
+    medians = [comp_median] * 2 + comp_ps
+    betas = [beta_tot, beta_rtr] + beta_rtr_ps
+
+    risk_metrics = []
+
+    for i, (median, beta) in enumerate(zip(medians, betas)):
+        risk, _ = risk_convolution(hcurve, imtl, median, beta)
+        risk_metrics.append(prob_in_n_years(risk, risk_duration))
+
+    return risk_metrics
+
+
+def infer_dmr_fragilities(dmr_median, beta_dmr, beta_rtr, p=0.9):
+    ''' use dmr distribution's median and dispersion, beta_rtr, and percentile to calculate
+        other parameters of the fragility distribution and return as dictionary
+
+    :param cmr_median: median value of the distribution of dmr values (fragility medians)
+    :param beta_comp: lognormal standard deviation of the distribution of the dmrs
+    :param beta_rtr: record-to-record uncertainty of each fragility
+    :param p: percentile of interest for the pth percentile of the risk
+
+    :return: dictionary of the relevant parameters for the fragility distribution
+    '''
+
+    beta_tot = np.sqrt(beta_dmr ** 2 + beta_rtr ** 2).round(2)
+    dmr_p = stats.lognorm(beta_dmr, scale=dmr_median).ppf(1 - p).round(1)
+
+    return {"dmr_median": dmr_median, "dmr_p": dmr_p, "beta_tot": beta_tot, "beta_rtr": beta_rtr, "beta_dmr": beta_dmr}
+
+
+def calc_str_damage_risk_stats(fragility_parameters, sa_design, hcurve, imtl, risk_duration=50):
+    ''' calculate statistics of the risk distribution, based on design inputs and the hazard curve
+
+    :param fragility_parameters: dictionary of the relevant parameters for the fragility distribution
+    :param sa_design: design value for amenity limit state, DIL1
+    :param hcurve: hazard curve annual probabilities of exceedance
+    :param imtl: hazard curve intensity measures
+    :param risk_duration: length of time considered (e.g., risk in 50 years)
+
+    :return: list of risk values - mean, median, and percentile of interest (based on fragility_parameters)
+    '''
+
+    dmr_median = fragility_parameters['dmr_median']
+    dmr_p = fragility_parameters['dmr_p']
+    beta_tot = fragility_parameters['beta_tot']
+    beta_rtr = fragility_parameters['beta_rtr']
+
+    risk_metrics = []
+
+    for i, (dmr, beta) in enumerate(zip([dmr_median, dmr_median, dmr_p], [beta_tot, beta_rtr, beta_rtr])):
+        median = dmr * sa_design
+        risk, _ = risk_convolution(hcurve, imtl, median, beta)
+        risk_metrics.append(prob_in_n_years(risk, risk_duration))
+
+    return risk_metrics
+
+
+def deterministic_sampling(fragility_parameters, n_samples):
+    """ sample from a fragility distribution at equal intervals
+
+    """
+    dp = 1 / (n_samples + 1)
+    p_samples = np.arange(dp, 1, dp)
+
+    comp_median = fragility_parameters['comp_median']
+    beta_comp = fragility_parameters['beta_comp']
+    sampled_medians = stats.lognorm(beta_comp, scale=comp_median).ppf(p_samples)
+
+    return sampled_medians
