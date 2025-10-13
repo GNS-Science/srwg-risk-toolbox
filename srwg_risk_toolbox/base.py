@@ -252,12 +252,12 @@ def find_uniform_risk_intensity(hcurve, imtl, beta, target_risk, design_point):
 
     return im_r, median
 
-#
-# def string_order_of_mag(x):
-#     ''' return a formatted string for 10 raised to the order of magnitude of the value, x
-#     '''
-#     order_of_mag = int('{x:e}'.format(x=x).split('e')[-1])
-#     return f'10$^{{{order_of_mag}}}$'
+
+def string_order_of_mag(x):
+    ''' return a formatted string for 10 raised to the order of magnitude of the value, x
+    '''
+    order_of_mag = int('{x:e}'.format(x=x).split('e')[-1])
+    return f'10$^{{{order_of_mag}}}$'
 
 
 
