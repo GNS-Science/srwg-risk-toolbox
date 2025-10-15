@@ -15,7 +15,7 @@ from rich import print as rprint
 
 g = 9.80665 # gravity in m/s^2
 
-data_folder = Path(r'C:\Users\ahul697\OneDrive - The University of Auckland\Desktop\Research\GitHub_Repos\GNS\srwg-risk-toolbox\data')
+data_folder = Path(__file__).resolve().parent.parent / "data"
 filename = Path(data_folder,'named_locations_combo.json')
 TS_TABLE = pd.read_json(filename,orient='table',precise_float=True)
 
